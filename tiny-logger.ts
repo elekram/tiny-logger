@@ -1,13 +1,13 @@
 import * as dateTime from 'https://deno.land/std@0.162.0/datetime/mod.ts'
 
-export type EntryOptions = {
+export type LogOptions = {
   logLevel?: 'info' | 'warn' | 'error'
   supressConsoleOutput?: boolean
   fileName?: string
 }
 
 
-export async function log(type: string, message: string, options: EntryOptions) {
+export async function log(type: string, message: string, options: LogOptions) {
   const supressConsoleOutput = options.supressConsoleOutput || false
   const logLevel = options.logLevel || 'info'
   const fileName = options.fileName || './log.csv'
