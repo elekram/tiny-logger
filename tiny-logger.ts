@@ -1,18 +1,15 @@
-import * as dateTime from 'https://deno.land/std@0.162.0/datetime/mod.ts'
-
 export type LogOptions = {
   logLevel?: 'info' | 'warn' | 'error'
   supressConsoleOutput?: boolean
   fileName?: string
 }
 
-
 export async function log(type: string, message: string, options: LogOptions) {
   const supressConsoleOutput = options.supressConsoleOutput || false
   const logLevel = options.logLevel || 'info'
   const fileName = options.fileName || './log.csv'
 
-  const date = dateTime.format(new Date(), "yyyy-MM-dd HH:mm:ss")
+  const date = new Date()
 
   const logColourIndex: Map<string, string> = new Map(
     Object.entries(
@@ -20,15 +17,16 @@ export async function log(type: string, message: string, options: LogOptions) {
     )
   )
 
+  const d = date.toISOString()
   const t = type
   const m = removeCommas(message)
   const l = logLevel
 
   if (!supressConsoleOutput) {
-    console.log(`%c${l.toUpperCase()}, ${date}, ${t}, ${m}`, `color: ${logColourIndex.get(l)};`)
+    console.log(`%c${d}, ${l.toUpperCase()}, ${t}, ${m}`, `color: ${logColourIndex.get(l)};`)
   }
 
-  const csvRow = `"${l.toUpperCase()}","${date}","${t}","${m}"\r\n`
+  const csvRow = `"${d}","${l.toUpperCase()}","${t}","${m}"\r\n`
   await writeFile(csvRow, fileName)
 }
 
