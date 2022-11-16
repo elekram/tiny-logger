@@ -5,9 +5,15 @@ export type LogOptions = {
 }
 
 export async function log(type: string, message: string, options: LogOptions) {
-  const supressConsoleOutput = options.supressConsoleOutput || false
-  const logLevel = options.logLevel || 'info'
-  const fileName = options.fileName || './log.csv'
+  let supressConsoleOutput = false
+  let logLevel = 'info'
+  let fileName = './log.csv'
+
+  if (options) {
+    supressConsoleOutput = options.supressConsoleOutput || false
+    logLevel = options.logLevel || 'info'
+    fileName = options.fileName || './log.csv'
+  }
 
   const date = new Date()
 
