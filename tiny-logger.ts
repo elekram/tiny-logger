@@ -4,7 +4,7 @@ export type LogOptions = {
   fileName?: string
 }
 
-export async function log(type: string, message: string, options: LogOptions) {
+export async function log(type: string, message: string, options?: LogOptions) {
   let supressConsoleOutput = false
   let logLevel = 'info'
   let fileName = './log.csv'
@@ -29,7 +29,7 @@ export async function log(type: string, message: string, options: LogOptions) {
   const l = logLevel
 
   if (!supressConsoleOutput) {
-    console.log(`%c${d}, ${l.toUpperCase()}, ${t}, ${m}`, `color: ${logColourIndex.get(l)};`)
+    console.log(`%c[ ${d}, ${l.toUpperCase()}, ${t}, ${m} ]`, `color: ${logColourIndex.get(l)};`)
   }
 
   const csvRow = `"${d}","${l.toUpperCase()}","${t}","${m}"\r\n`
