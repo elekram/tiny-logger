@@ -1,46 +1,165 @@
-export type LogOptions = {
-  logLevel?: 'info' | 'warn' | 'error'
+// Copyright 2023 Mark Lee (mlee.aus@gmail.com). All rights reserved. MIT license.
+import { stringify, Column } from "https://deno.land/std@0.170.0/encoding/csv.ts";
+
+export interface LogOptions {
+  format?: 'csv' | 'json'
   supressConsoleOutput?: boolean
   fileName?: string
 }
 
-export async function log(type: string, message: string, options?: LogOptions) {
-  let supressConsoleOutput = false
-  let logLevel = 'info'
-  let fileName = './log.csv'
+export class TinyLogger {
+  #logLabel: string
+  #format: 'csv' | 'json'
+  #supressConsoleOutput: boolean
 
-  if (options) {
-    supressConsoleOutput = options.supressConsoleOutput || false
-    logLevel = options.logLevel || 'info'
-    fileName = options.fileName || './log.csv'
-  }
+  readonly logInstantiationTime = getFormattedDateTime()
 
-  const date = new Date()
-
-  const logColourIndex: Map<string, string> = new Map(
+  #logColors: Map<string, string> = new Map(
     Object.entries(
       { info: 'green', warn: 'yellow', error: 'red' }
     )
   )
 
-  const d = date.toISOString()
-  const t = type
-  const m = removeCommas(message)
-  const l = logLevel
-
-  if (!supressConsoleOutput) {
-    console.log(`%c[ ${d}, ${l.toUpperCase()}, ${t}, ${m} ]`, `color: ${logColourIndex.get(l)};`)
+  constructor(options: LogOptions) {
+    this.#format = options.format || 'csv'
+    this.#supressConsoleOutput = options.supressConsoleOutput || false
+    this.#logLabel = options.fileName || 'log'
   }
 
-  const csvRow = `"${d}","${l.toUpperCase()}","${t}","${m}"\r\n`
-  await writeFile(csvRow, fileName)
+  public async info(subject: string, message: string) {
+    const level = 'INFO'
+
+    const data = await formatData(this.#format, level, subject, message)
+    await this.writeFile(data, this.#logLabel, this.#format)
+
+    if (!this.#supressConsoleOutput) {
+      this.logToConsole(level, subject, message)
+    }
+  }
+
+  public async warn(subject: string, message: string) {
+    const level = 'WARN'
+
+    const data = await formatData(this.#format, level, subject, message)
+    await this.writeFile(data, this.#logLabel, this.#format)
+
+    if (!this.#supressConsoleOutput) {
+      this.logToConsole(level, subject, message)
+    }
+  }
+
+  public async error(subject: string, message: string) {
+    const level = 'ERROR'
+
+    const data = await formatData(this.#format, level, subject, message)
+    await this.writeFile(data, this.#logLabel, this.#format)
+
+    if (!this.#supressConsoleOutput) {
+      this.logToConsole(level, subject, message)
+    }
+  }
+
+  private logToConsole(
+    level: 'INFO' | 'WARN' | 'ERROR',
+    subject: string,
+    message: string
+  ) {
+    const dt = getDateTime()
+    const outputColor = this.#logColors.get(level.toLowerCase())
+    console.log(`%c[ ${level}, ${dt}, ${subject}, ${message} ]`, `color: ${outputColor};`)
+  }
+
+  private async writeFile(data: string, logLabel: string, format: 'csv' | 'json') {
+    if (!isAlphanumeric(logLabel)) {
+      throw 'Error: TinyLogger loglabel contains invalid characters. Label can be alphanumeric characters only.'
+    }
+
+    let l = logLabel
+    if (logLabel !== 'log') {
+      l = `${logLabel}.log`
+    }
+
+    const dt = this.logInstantiationTime
+
+    const f = format === 'csv' ?
+      `${l}.${dt}.csv` :
+      `${l}.${dt}.txt`
+
+    try {
+      await Deno.writeTextFile(f, data, { append: true })
+    } catch (e) {
+      console.error(e.message)
+    }
+  }
 }
 
-async function writeFile(s: string, fileName: string) {
-  await Deno.writeTextFile(fileName, s, { append: true })
+function getFormattedDateTime() {
+  const d = new Date()
+  const dateTime = d.toJSON().split('T')
+
+  const time = dateTime[1]
+  const timeWithoutMiliseconds = time.split('.')[0]
+  const timeForFilename = timeWithoutMiliseconds.replaceAll(':', '-')
+
+  const formattedDateTime = `${dateTime[0]}T${timeForFilename}`
+
+  return formattedDateTime
 }
 
-function removeCommas(s: string) {
-  const sanitised = s.replace(/[,]+/g, '')
-  return sanitised
+function getDateTime() {
+  const d = new Date()
+  return d.toISOString().split('.')[0] + 'Z'
+}
+
+function getEol() {
+  const os = Deno.build.os
+  const eol = os === 'windows' ? '\r\n' : '\n'
+  return eol
+}
+
+function isAlphanumeric(s: string) {
+  return /^[A-Za-z0-9]*$/.test(s);
+}
+
+async function formatData(
+  format: 'csv' | 'json',
+  level: string,
+  subject: string,
+  message: string
+) {
+  let data: string
+  const date = getDateTime()
+
+  switch (format) {
+    case 'csv': {
+      const columns: Column = [
+        'level',
+        'date',
+        'subject',
+        'message'
+      ]
+
+      data = await stringify(
+        [{
+          level,
+          date,
+          subject,
+          message
+        }], { columns, headers: false }
+      )
+    }
+      break
+
+    case 'json': {
+      data = JSON.stringify({
+        level,
+        date,
+        subject,
+        message
+      }) + getEol()
+    }
+      break
+  }
+
+  return data
 }

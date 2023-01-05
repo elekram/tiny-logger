@@ -1,2 +1,5 @@
 # vs code directory
 .vscode/
+*.csv
+*.txt
+test.ts
