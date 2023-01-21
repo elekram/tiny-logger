@@ -43,3 +43,10 @@ const logger = new TinyLogger({
 })
 logger.error('Some Module', 'Oh snap! Something went wrong :(')
 ```
+## Pretty console output
+<img src='https://drive.google.com/uc?id=1BkolBle9-wQzS5KaJ4QVWpuDEve7Bfx2' width="40%">
+
+## Raw console output
+<img src='https://drive.google.com/uc?id=1hUWa89k0RUh6K4K4V0CFDsnyr6F8vQ9s'>
+
+
