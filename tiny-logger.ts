@@ -6,6 +6,7 @@ export interface LogOptions {
   format?: 'csv' | 'json' // file extensions respectively are .csv or .txt file
   disableConsoleLogging?: boolean // don't write to console
   disableFileLogging?: boolean
+  consoleOutput?: 'raw' | 'pretty'
   logLabel?: string // <logLabel>.log.<instantiation-date-time>.csv|txt
   path?: string // log path defaults to current directory
   maxBytes?: number // default 10mb
@@ -19,8 +20,9 @@ enum LogLevels {
 }
 
 export class TinyLogger {
-  readonly instantiation = getInstantiation()
+  #instantiation = getInstantiation()
   #format: 'csv' | 'json'
+  #consoleOutput: 'raw' | 'pretty'
   #logLabel: string
   #path: string
   #disableConsoleLogging: boolean
@@ -40,6 +42,7 @@ export class TinyLogger {
   constructor(options: LogOptions) {
     this.#format = options.format || 'csv'
     this.#logLabel = options.logLabel || 'log'
+    this.#consoleOutput = options.consoleOutput || 'pretty'
     this.#path = options.path || './'
     this.#maxBytes = options.maxBytes || 10485760
     this.#disableConsoleLogging = options.disableConsoleLogging || false
@@ -49,15 +52,15 @@ export class TinyLogger {
 
   private async init() {
     if (this.#disableConsoleLogging && this.#disableFileLogging) {
-      throw `TinyLogger Error: file logging and console logging are both disabled.`
-    }
-
-    if (!this.#disableFileLogging) {
-      await this.testFileLogging()
+      throw `TinyLogger Error: file logging and console logging cannot both be disabled.`
     }
 
     if (!isAlphanumeric(this.#logLabel)) {
       throw 'TinyLogger Error: loglabel contains invalid characters. Label can be alphanumeric characters only.'
+    }
+
+    if (!this.#disableFileLogging) {
+      await testFilePath(this.#path)
     }
 
     if (this.#logLabel !== 'log') {
@@ -65,17 +68,17 @@ export class TinyLogger {
     }
 
     const initialFile = this.#format === 'csv' ?
-      `${this.#logLabel}.${this.instantiation}.csv` :
-      `${this.#logLabel}.${this.instantiation}.txt`
+      `${this.#logLabel}.${this.#instantiation}.csv` :
+      `${this.#logLabel}.${this.#instantiation}.txt`
 
     this.#currentLogFile = this.#path + initialFile
   }
 
-  debug(subject: string, message: string) {
-    const data = formatData(this.#format, LogLevels.Debug, subject, message)
+  debug(source: string, message: string) {
+    const data = formatData(this.#format, LogLevels.Debug, source, message)
 
     if (!this.#disableConsoleLogging) {
-      this.logToConsole(LogLevels.Debug, subject, message)
+      this.logToConsole(LogLevels.Debug, source, message)
     }
 
     if (!this.#disableFileLogging) {
@@ -83,11 +86,11 @@ export class TinyLogger {
     }
   }
 
-  info(subject: string, message: string) {
-    const data = formatData(this.#format, LogLevels.Info, subject, message)
+  info(source: string, message: string) {
+    const data = formatData(this.#format, LogLevels.Info, source, message)
 
     if (!this.#disableConsoleLogging) {
-      this.logToConsole(LogLevels.Info, subject, message)
+      this.logToConsole(LogLevels.Info, source, message)
     }
 
     if (!this.#disableFileLogging) {
@@ -95,11 +98,11 @@ export class TinyLogger {
     }
   }
 
-  warn(subject: string, message: string) {
-    const data = formatData(this.#format, LogLevels.Error, subject, message)
+  warn(source: string, message: string) {
+    const data = formatData(this.#format, LogLevels.Warn, source, message)
 
     if (!this.#disableConsoleLogging) {
-      this.logToConsole(LogLevels.Error, subject, message)
+      this.logToConsole(LogLevels.Warn, source, message)
     }
 
     if (!this.#disableFileLogging) {
@@ -107,40 +110,50 @@ export class TinyLogger {
     }
   }
 
-  error(subject: string, message: string) {
-    const data = formatData(this.#format, LogLevels.Error, subject, message)
+  error(source: string, message: string) {
+    const data = formatData(this.#format, LogLevels.Error, source, message)
 
     if (!this.#disableConsoleLogging) {
-      this.logToConsole(LogLevels.Error, subject, message)
+      this.logToConsole(LogLevels.Error, source, message)
     }
 
     if (!this.#disableFileLogging) {
       this.writeFile(data)
-    }
-  }
-
-  private async testFileLogging() {
-    try {
-      await Deno.lstat(this.#path);
-    } catch (err) {
-      if (err instanceof Deno.errors.NotFound) {
-        throw `TinyLogger Error: Invalid Path '${this.#path}'`
-      }
-      throw err;
     }
   }
 
   private logToConsole(
     level: LogLevels,
-    subject: string,
+    source: string,
     message: string
   ) {
-    const dt = (new Date()).toISOString()
-    const outputColor = this.#logColors.get(level.toString())
-    console.log(`%c[ ${level}, ${dt}, ${subject}, ${message} ]`, `color: ${outputColor};`)
+    const time = (new Date()).toISOString()
+    const outputColor = this.#logColors.get(level)
+
+    const data = JSON.stringify({
+      time,
+      [level]: source,
+      message
+    })
+
+    switch (this.#consoleOutput) {
+      case 'raw':
+        console.log(`%c${data}`, `color: ${outputColor};`)
+        break
+
+      case 'pretty':
+        console.log(`%c[${time}] ${level}: ${source}`, `color: ${outputColor};`)
+        console.log(`%c${message}\n`, `color: light-blue;`)
+        break
+
+    }
   }
 
   private async writeFile(data: string) {
+    const path = this.#path[this.#path.length - 1] === '/' ?
+      this.#path :
+      this.#path + '/'
+
     const newMessageBytes = this.#encoder.encode(data).byteLength
     this.#byteLength += newMessageBytes
 
@@ -154,10 +167,10 @@ export class TinyLogger {
       this.#logFileNumber++
 
       const nextFileToWrite = this.#format === 'csv' ?
-        `${this.#logLabel}.${this.instantiation}_${this.#logFileNumber}.csv` :
-        `${this.#logLabel}.${this.instantiation}_${this.#logFileNumber}.txt`
+        `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.csv` :
+        `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.txt`
 
-      this.#currentLogFile = this.#path + nextFileToWrite
+      this.#currentLogFile = path + nextFileToWrite
 
       const nextFile = Deno.openSync(
         this.#currentLogFile,
@@ -186,26 +199,26 @@ function isAlphanumeric(s: string) {
 function formatData(
   format: 'csv' | 'json',
   level: LogLevels,
-  subject: string,
+  source: string,
   message: string
 ) {
   let data: string
-  const date = (new Date()).toISOString()
+  const time = (new Date()).toISOString()
 
   switch (format) {
     case 'csv': {
       const columns: Column = [
+        'time',
         'level',
-        'date',
-        'subject',
+        'source',
         'message'
       ]
 
       data = stringify(
         [{
+          time,
           level,
-          date,
-          subject,
+          source,
           message
         }], { columns, headers: false }
       )
@@ -214,9 +227,9 @@ function formatData(
 
     case 'json': {
       data = JSON.stringify({
+        time,
         level,
-        date,
-        subject,
+        source,
         message
       }) + getEol()
     }
@@ -224,6 +237,17 @@ function formatData(
   }
 
   return data
+}
+
+async function testFilePath(path: string) {
+  try {
+    await Deno.lstat(path);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      throw `TinyLogger Error: Invalid Path '${path}'`
+    }
+    throw err;
+  }
 }
 
 function getInstantiation() {
