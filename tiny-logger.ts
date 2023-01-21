@@ -63,6 +63,8 @@ export class TinyLogger {
       await testFilePath(this.#path)
     }
 
+    const path = getPathString(this.#path)
+
     if (this.#logLabel !== 'log') {
       this.#logLabel = `${this.#logLabel}.log`
     }
@@ -71,7 +73,7 @@ export class TinyLogger {
       `${this.#logLabel}.${this.#instantiation}.csv` :
       `${this.#logLabel}.${this.#instantiation}.txt`
 
-    this.#currentLogFile = this.#path + initialFile
+    this.#currentLogFile = path + initialFile
   }
 
   debug(source: string, message: string) {
@@ -150,9 +152,7 @@ export class TinyLogger {
   }
 
   private async writeFile(data: string) {
-    const path = this.#path[this.#path.length - 1] === '/' ?
-      this.#path :
-      this.#path + '/'
+    const path = getPathString(this.#path)
 
     const newMessageBytes = this.#encoder.encode(data).byteLength
     this.#byteLength += newMessageBytes
@@ -188,6 +188,15 @@ export class TinyLogger {
 
 function isAlphanumeric(s: string) {
   return /^[A-Za-z0-9]*$/.test(s);
+}
+
+function getPathString(path: string) {
+  if (path !== './') {
+    path = path[path.length - 1] === '/' ?
+      path :
+      path + '/'
+  }
+  return path
 }
 
 function formatData(
