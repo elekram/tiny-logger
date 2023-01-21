@@ -1,6 +1,6 @@
 # Tiny Logger 🌱
 ## A simple, no fuss and slightly opionionated logger for Deno.  
-Writes log entries to either a Csv file or Txt file with Json objects.
+Logs to console and also writes log entries to either a Csv file or Txt file with Json objects.
 - CSV file (.csv)
 - JSON Objects (.txt)
 
