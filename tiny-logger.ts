@@ -186,12 +186,6 @@ export class TinyLogger {
   }
 }
 
-function getEol() {
-  const os = Deno.build.os
-  const eol = os === 'windows' ? '\r\n' : '\n'
-  return eol
-}
-
 function isAlphanumeric(s: string) {
   return /^[A-Za-z0-9]*$/.test(s);
 }
@@ -231,7 +225,7 @@ function formatData(
         level,
         source,
         message
-      }) + getEol()
+      }) + '\n'
     }
       break
   }
