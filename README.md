@@ -6,7 +6,7 @@ Logs to console and also writes log entries to either a Csv file or Txt file wit
 
 Csv log files are often a convenient format and are TinyLogger's default, however this can be easily changed to Json objects written to a .txt file as shown in the LogOption interface below. Additional logfiles will be generated when maxBytes is reached and appended with a incrementing number.
 
-A source and message function parameters are required to log a message. See usage examples below.
+Source and message function parameters are required to log a message. See usage examples below.
 
 Log file names are opinionated and stamped with the TinyLogger object's instantiation date and time however they can have a custom label. 
 
@@ -19,12 +19,10 @@ Example file names:
 
 ```typescript
 interface LogOptions {
-  format?: 'csv' | 'json' // default csv. File extensions respectively are .csv or .txt
-  disableConsoleLogging?: boolean // default false
-  disableFileLogging?: boolean // default false
-  consoleOutput?: 'raw' | 'pretty' // default pretty
-  logLabel?: string // <logLabel>.log.<logger-instantiation-date-time>.csv|txt
-  path?: string // defaults to current directory
+  format?: 'csv' | 'json' // file extensions respectively are .csv or .txt file
+  disableConsoleLogging?: boolean // don't write to console
+  consoleOutput?: 'raw' | 'pretty'
+  logLabel?: string // <logLabel>.log.<instantiation-date-time>.csv|txt
   maxBytes?: number // default 10mb
 }
 
@@ -33,14 +31,16 @@ info(source: string, message: string)
 warn(source: string, message: string)
 error(source: string, message: string)
 
-// Basic usage with interface defaults
+// Basic usage with interface defaults and file logging disabled
 const logger = new TinyLogger
 logger.error('Some Module', 'Oh snap! Something went wrong :(')
 
-// Advanced usage with custom options specified
+// Advanced usage with custom options specified and file logging enabled
 const logger = new TinyLogger({
   path: './logs', maxBytes: 5242880, format: 'json', consoleOutput: 'raw'
 })
+logger.enableFileLogging('./logs') // path is optional defaults to current directory
+
 logger.error('Some Module', 'Oh snap! Something went wrong :(')
 ```
 ## Pretty console output
