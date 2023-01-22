@@ -5,10 +5,8 @@ import { writeAll } from "https://deno.land/std@0.171.0/streams/write_all.ts"
 export interface LogOptions {
   format?: 'csv' | 'json' // file extensions respectively are .csv or .txt file
   disableConsoleLogging?: boolean // don't write to console
-  disableFileLogging?: boolean
   consoleOutput?: 'raw' | 'pretty'
   logLabel?: string // <logLabel>.log.<instantiation-date-time>.csv|txt
-  path?: string // log path defaults to current directory
   maxBytes?: number // default 10mb
 }
 
@@ -24,14 +22,16 @@ export class TinyLogger {
   #format: 'csv' | 'json'
   #consoleOutput: 'raw' | 'pretty'
   #logLabel: string
-  #path: string
+  #path: string = Deno.cwd()
   #disableConsoleLogging: boolean
-  #disableFileLogging: boolean
+  #enableFileLogging = false
   #encoder = new TextEncoder()
   #maxBytes: number
   #byteLength = 0
   #currentLogFile = ''
   #logFileNumber = 0
+  #data = ''
+  #file: any
 
   #logColors: Map<string, string> = new Map(
     Object.entries(
@@ -39,19 +39,17 @@ export class TinyLogger {
     )
   )
 
-  constructor(options: LogOptions) {
-    this.#format = options.format || 'csv'
-    this.#logLabel = options.logLabel || 'log'
-    this.#consoleOutput = options.consoleOutput || 'pretty'
-    this.#path = options.path || './'
-    this.#maxBytes = options.maxBytes || 10485760
-    this.#disableConsoleLogging = options.disableConsoleLogging || false
-    this.#disableFileLogging = options.disableFileLogging || false
+  constructor(options?: LogOptions) {
+    this.#format = options?.format || 'csv'
+    this.#logLabel = options?.logLabel || 'log'
+    this.#consoleOutput = options?.consoleOutput || 'pretty'
+    this.#maxBytes = options?.maxBytes || 10485760
+    this.#disableConsoleLogging = options?.disableConsoleLogging || false
     this.init()
   }
 
-  private async init() {
-    if (this.#disableConsoleLogging && this.#disableFileLogging) {
+  private init() {
+    if (this.#disableConsoleLogging && !this.#enableFileLogging) {
       throw `TinyLogger Error: file logging and console logging cannot both be disabled.`
     }
 
@@ -59,21 +57,9 @@ export class TinyLogger {
       throw 'TinyLogger Error: loglabel contains invalid characters. Label can be alphanumeric characters only.'
     }
 
-    if (!this.#disableFileLogging) {
-      await testFilePath(this.#path)
-    }
-
-    const path = getPathString(this.#path)
-
     if (this.#logLabel !== 'log') {
       this.#logLabel = `${this.#logLabel}.log`
     }
-
-    const initialFile = this.#format === 'csv' ?
-      `${this.#logLabel}.${this.#instantiation}.csv` :
-      `${this.#logLabel}.${this.#instantiation}.txt`
-
-    this.#currentLogFile = path + initialFile
   }
 
   debug(source: string, message: string) {
@@ -83,8 +69,8 @@ export class TinyLogger {
       this.logToConsole(LogLevels.Debug, source, message)
     }
 
-    if (!this.#disableFileLogging) {
-      this.writeFile(data)
+    if (this.#enableFileLogging) {
+      this.writeFile(data, this.save)
     }
   }
 
@@ -95,8 +81,8 @@ export class TinyLogger {
       this.logToConsole(LogLevels.Info, source, message)
     }
 
-    if (!this.#disableFileLogging) {
-      this.writeFile(data)
+    if (this.#enableFileLogging) {
+      this.writeFile(data, this.save)
     }
   }
 
@@ -107,8 +93,8 @@ export class TinyLogger {
       this.logToConsole(LogLevels.Warn, source, message)
     }
 
-    if (!this.#disableFileLogging) {
-      this.writeFile(data)
+    if (this.#enableFileLogging) {
+      this.writeFile(data, this.save)
     }
   }
 
@@ -119,9 +105,20 @@ export class TinyLogger {
       this.logToConsole(LogLevels.Error, source, message)
     }
 
-    if (!this.#disableFileLogging) {
-      this.writeFile(data)
+    if (this.#enableFileLogging) {
+      this.writeFile(data, this.save)
     }
+  }
+
+  public async enableFileLogging(path?: string) {
+    this.#enableFileLogging = true
+    if (path) {
+      this.#path = path
+    }
+    this.#path = getPathString(this.#path)
+
+    await testFilePath(this.#path)
+    this.openFile()
   }
 
   private logToConsole(
@@ -151,16 +148,31 @@ export class TinyLogger {
     }
   }
 
-  private async writeFile(data: string) {
+  private async save(x: any) {
+    await writeAll(x.#file, x.#encoder.encode(x.#data))
+  }
+
+  private openFile() {
     const path = getPathString(this.#path)
 
-    const newMessageBytes = this.#encoder.encode(data).byteLength
-    this.#byteLength += newMessageBytes
+    const initialFile = this.#format === 'csv' ?
+      `${this.#logLabel}.${this.#instantiation}.csv` :
+      `${this.#logLabel}.${this.#instantiation}.txt`
 
-    const file = Deno.openSync(
+    this.#currentLogFile = path + initialFile
+
+    this.#file = Deno.openSync(
       this.#currentLogFile,
       { read: true, write: true, create: true, append: true }
     )
+  }
+
+  private writeFile(data: string, callback: Function) {
+    this.#data = data
+    const path = this.#path
+
+    const newMessageBytes = this.#encoder.encode(data).byteLength
+    this.#byteLength += newMessageBytes
 
     if (this.#byteLength > this.#maxBytes) {
       this.#byteLength = 0
@@ -172,16 +184,20 @@ export class TinyLogger {
 
       this.#currentLogFile = path + nextFileToWrite
 
-      const nextFile = Deno.openSync(
+      this.#file.close()
+
+      this.#file = Deno.openSync(
         this.#currentLogFile,
         { read: true, write: true, create: true, append: true }
       )
-
-      await writeAll(nextFile, this.#encoder.encode(data))
-      nextFile.close()
+      callback(this)
     } else {
-      await writeAll(file, this.#encoder.encode(data))
-      file.close()
+      const initialFile = this.#format === 'csv' ?
+        `${this.#logLabel}.${this.#instantiation}.csv` :
+        `${this.#logLabel}.${this.#instantiation}.txt`
+
+      this.#currentLogFile = path + initialFile
+      callback(this)
     }
   }
 }
