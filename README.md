@@ -39,7 +39,7 @@ logger.error('Some Module', 'Oh snap! Something went wrong :(')
 const logger = new TinyLogger({
   path: './logs', maxBytes: 5242880, format: 'json', consoleOutput: 'raw'
 })
-logger.enableFileLogging('./logs') // path is optional defaults to current directory
+await logger.enableFileLogging('./logs') // path is optional defaults to current directory
 
 logger.error('Some Module', 'Oh snap! Something went wrong :(')
 ```
