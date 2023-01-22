@@ -113,7 +113,7 @@ export class TinyLogger {
     if (path) {
       this.#path = path
     }
-    this.#path = getPathString(this.#path)
+    this.#path = pathHelper(this.#path)
 
     await testFilePath(this.#path)
     this.openFile()
@@ -153,9 +153,7 @@ export class TinyLogger {
   }
 
   private openFile() {
-    const file = this.#format === 'csv' ?
-      `${this.#logLabel}.${this.#instantiation}.csv` :
-      `${this.#logLabel}.${this.#instantiation}.txt`
+    const file = `${this.#logLabel}.${this.#instantiation}.${this.#format}`
 
     this.#file = Deno.openSync(
       this.#path + file,
@@ -176,9 +174,7 @@ export class TinyLogger {
       this.#byteLength = 0
       this.#logFileNumber++
 
-      const file = this.#format === 'csv' ?
-        `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.csv` :
-        `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.txt`
+      const file = `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.${this.#format}`
 
       this.#file = Deno.openSync(
         this.#path + file,
@@ -193,7 +189,7 @@ function isAlphanumeric(s: string) {
   return /^[A-Za-z0-9]*$/.test(s);
 }
 
-function getPathString(path: string) {
+function pathHelper(path: string) {
   if (path !== './') {
     path = path[path.length - 1] === '/' ?
       path :
