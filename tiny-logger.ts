@@ -17,6 +17,8 @@ enum LogLevels {
   Error = 'ERROR'
 }
 
+type SaveCallback = (file: Deno.FsFile, data: Uint8Array) => Promise<void>
+
 export class TinyLogger {
   #instantiation = getInstantiation()
   #format: 'csv' | 'json'
@@ -68,7 +70,7 @@ export class TinyLogger {
     }
 
     if (this.#enableFileLogging) {
-      this.writeFile(data, this.save)
+      this.writeFile(data, this.saveCallback)
     }
   }
 
@@ -80,7 +82,7 @@ export class TinyLogger {
     }
 
     if (this.#enableFileLogging) {
-      this.writeFile(data, this.save)
+      this.writeFile(data, this.saveCallback)
     }
   }
 
@@ -92,7 +94,7 @@ export class TinyLogger {
     }
 
     if (this.#enableFileLogging) {
-      this.writeFile(data, this.save)
+      this.writeFile(data, this.saveCallback)
     }
   }
 
@@ -104,7 +106,7 @@ export class TinyLogger {
     }
 
     if (this.#enableFileLogging) {
-      this.writeFile(data, this.save)
+      this.writeFile(data, this.saveCallback)
     }
   }
 
@@ -146,7 +148,7 @@ export class TinyLogger {
     }
   }
 
-  private async save(
+  private async saveCallback(
     file: Deno.FsFile,
     data: Uint8Array
   ) {
@@ -160,14 +162,14 @@ export class TinyLogger {
     )
   }
 
-  private writeFile(data: string, callback: (Function)) {
+  private writeFile(data: string, saveCallback: (SaveCallback)) {
     const encodedData = this.#encoder.encode(data)
 
     const newMessageBytes = this.#encoder.encode(data).byteLength
     this.#byteLength += newMessageBytes
 
     if (this.#byteLength < this.#maxBytes) {
-      callback(this.#file, encodedData)
+      saveCallback(this.#file, encodedData)
     } else {
       this.#file.close()
       this.#byteLength = 0
@@ -176,7 +178,7 @@ export class TinyLogger {
       const file = `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.${this.#format}`
       this.openFile(file)
 
-      callback(this.#file, encodedData)
+      saveCallback(this.#file, encodedData)
     }
   }
 }
