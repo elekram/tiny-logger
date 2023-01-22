@@ -28,9 +28,7 @@ export class TinyLogger {
   #encoder = new TextEncoder()
   #maxBytes: number
   #byteLength = 0
-  #currentLogFile = ''
   #logFileNumber = 0
-  // #data = ''
   #file!: Deno.FsFile
 
   #logColors: Map<string, string> = new Map(
@@ -155,14 +153,12 @@ export class TinyLogger {
   }
 
   private openFile() {
-    const initialFile = this.#format === 'csv' ?
+    const file = this.#format === 'csv' ?
       `${this.#logLabel}.${this.#instantiation}.csv` :
       `${this.#logLabel}.${this.#instantiation}.txt`
 
-    this.#currentLogFile = this.#path + initialFile
-
     this.#file = Deno.openSync(
-      this.#currentLogFile,
+      this.#path + file,
       { read: true, write: true, create: true, append: true }
     )
   }
@@ -174,25 +170,18 @@ export class TinyLogger {
     this.#byteLength += newMessageBytes
 
     if (this.#byteLength < this.#maxBytes) {
-      const fileToWrite = this.#format === 'csv' ?
-        `${this.#logLabel}.${this.#instantiation}.csv` :
-        `${this.#logLabel}.${this.#instantiation}.txt`
-
-      this.#currentLogFile = this.#path + fileToWrite
       callback(this.#file, encodedData)
     } else {
       this.#file.close()
       this.#byteLength = 0
       this.#logFileNumber++
 
-      const fileToWrite = this.#format === 'csv' ?
+      const file = this.#format === 'csv' ?
         `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.csv` :
         `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.txt`
 
-      this.#currentLogFile = this.#path + fileToWrite
-
       this.#file = Deno.openSync(
-        this.#currentLogFile,
+        this.#path + file,
         { read: true, write: true, create: true, append: true }
       )
       callback(this.#file, encodedData)
