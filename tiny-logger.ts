@@ -30,8 +30,8 @@ export class TinyLogger {
   #byteLength = 0
   #currentLogFile = ''
   #logFileNumber = 0
-  #data = ''
-  #file: any
+  // #data = ''
+  #file!: Deno.FsFile
 
   #logColors: Map<string, string> = new Map(
     Object.entries(
@@ -144,22 +144,22 @@ export class TinyLogger {
         console.log(`%c[${time}] ${level}: ${source}`, `color: ${outputColor};`)
         console.log(`%c${message}\n`, `color: light-blue;`)
         break
-
     }
   }
 
-  private async save(x: any) {
-    await writeAll(x.#file, x.#encoder.encode(x.#data))
+  private async save(
+    file: Deno.FsFile,
+    data: Uint8Array
+  ) {
+    await writeAll(file, data)
   }
 
   private openFile() {
-    const path = getPathString(this.#path)
-
     const initialFile = this.#format === 'csv' ?
       `${this.#logLabel}.${this.#instantiation}.csv` :
       `${this.#logLabel}.${this.#instantiation}.txt`
 
-    this.#currentLogFile = path + initialFile
+    this.#currentLogFile = this.#path + initialFile
 
     this.#file = Deno.openSync(
       this.#currentLogFile,
@@ -167,37 +167,35 @@ export class TinyLogger {
     )
   }
 
-  private writeFile(data: string, callback: Function) {
-    this.#data = data
-    const path = this.#path
+  private writeFile(data: string, callback: (Function)) {
+    const encodedData = this.#encoder.encode(data)
 
     const newMessageBytes = this.#encoder.encode(data).byteLength
     this.#byteLength += newMessageBytes
 
-    if (this.#byteLength > this.#maxBytes) {
+    if (this.#byteLength < this.#maxBytes) {
+      const fileToWrite = this.#format === 'csv' ?
+        `${this.#logLabel}.${this.#instantiation}.csv` :
+        `${this.#logLabel}.${this.#instantiation}.txt`
+
+      this.#currentLogFile = this.#path + fileToWrite
+      callback(this.#file, encodedData)
+    } else {
+      this.#file.close()
       this.#byteLength = 0
       this.#logFileNumber++
 
-      const nextFileToWrite = this.#format === 'csv' ?
+      const fileToWrite = this.#format === 'csv' ?
         `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.csv` :
         `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.txt`
 
-      this.#currentLogFile = path + nextFileToWrite
-
-      this.#file.close()
+      this.#currentLogFile = this.#path + fileToWrite
 
       this.#file = Deno.openSync(
         this.#currentLogFile,
         { read: true, write: true, create: true, append: true }
       )
-      callback(this)
-    } else {
-      const initialFile = this.#format === 'csv' ?
-        `${this.#logLabel}.${this.#instantiation}.csv` :
-        `${this.#logLabel}.${this.#instantiation}.txt`
-
-      this.#currentLogFile = path + initialFile
-      callback(this)
+      callback(this.#file, encodedData)
     }
   }
 }
