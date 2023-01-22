@@ -116,7 +116,8 @@ export class TinyLogger {
     this.#path = pathHelper(this.#path)
 
     await testFilePath(this.#path)
-    this.openFile()
+    const file = `${this.#logLabel}.${this.#instantiation}.${this.#format}`
+    this.openFile(file)
   }
 
   private logToConsole(
@@ -152,9 +153,7 @@ export class TinyLogger {
     await writeAll(file, data)
   }
 
-  private openFile() {
-    const file = `${this.#logLabel}.${this.#instantiation}.${this.#format}`
-
+  private openFile(file: string) {
     this.#file = Deno.openSync(
       this.#path + file,
       { read: true, write: true, create: true, append: true }
@@ -175,11 +174,8 @@ export class TinyLogger {
       this.#logFileNumber++
 
       const file = `${this.#logLabel}.${this.#instantiation}_${this.#logFileNumber}.${this.#format}`
+      this.openFile(file)
 
-      this.#file = Deno.openSync(
-        this.#path + file,
-        { read: true, write: true, create: true, append: true }
-      )
       callback(this.#file, encodedData)
     }
   }
