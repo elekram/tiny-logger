@@ -4,7 +4,7 @@ Logs to console and also writes log entries to either a Csv file or Txt file wit
 - CSV file (.csv)
 - JSON Objects (.txt)
 
-Csv log files are often a convenient format and are TinyLogger's default, however this can be easily changed to Json objects written to a .txt file as shown in the LogOption interface below. Additional logfiles will be generated when maxBytes is reached and appended with a incrementing number.
+Csv log files are often a convenient format and are TinyLogger's default, however this can be easily changed to Json objects written to a .txt file as shown in the LogOption interface below. Additional logfiles will be generated when maxBytes is reached and appended with an incremented number.
 
 Source and message function parameters are required to log a message. See usage examples below.
 
@@ -37,7 +37,7 @@ logger.error('Some Module', 'Oh snap! Something went wrong :(')
 
 // Advanced usage with custom options specified and file logging enabled
 const logger = new TinyLogger({
-  path: './logs', maxBytes: 5242880, format: 'json', consoleOutput: 'raw'
+  maxBytes: 5242880, format: 'json', consoleOutput: 'raw'
 })
 await logger.enableFileLogging('./logs') // path is optional defaults to current directory
 
